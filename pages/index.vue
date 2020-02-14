@@ -1,51 +1,114 @@
 <template>
-  <div class="container">
-    <div>
-      <h1 class="title">
-        motion-blank-poc
-      </h1>
-      <h2 class="subtitle">
-        Makes your screen black on motion detection
-      </h2>
-      <div>
-        The screen should go blank when you start moving your phone.
-      </div>
+  <div>
+    <Blur v-if="isBlur" />
+    <div class="container">
+      <div class="title">Moving: {{isBlur}}</div>
+      <div class="subtitle">Alerts user to not use the device on motion detection</div>
+      <div>acceleration: {{ getFixedNumber(acceleration.average) }}</div>
+      <div>xyzAccelerationSum: {{ getFixedNumber(xyzAccelerationSum) }}</div>
+      <div>isIphone: {{ isIphone }}</div>
+      <button v-if="isIphone" @click="requestDeviceMotionPermission">Start</button>
     </div>
   </div>
 </template>
 
 <script>
+import Blur from "../components/Blur.vue";
+
 export default {
   components: {
+    Blur
+  },
+  data() {
+    return {
+      acceleration: "",
+      isBlur: false,
+      acceleration: {
+        average: 0,
+        n: 0
+      },
+      xyzAccelerationSum: 0,
+      isIphone: false
+    };
+  },
+  computed: {
+    accelerationData() {
+      return `${this.getFixedNumber(this.acceleration.average)}`;
+    }
+  },
+  methods: {
+    requestDeviceMotionPermission() {
+      DeviceMotionEvent.requestPermission()
+        .then(permissionState => {
+          if (permissionState === "granted") {
+            window.addEventListener("devicemotion", this.processMotion);
+          } else {
+            alert("This app requires DeviceMotion permission.");
+          }
+        })
+        .catch(console.error);
+    },
+    detectIphone() {
+      this.isIphone =
+        DeviceMotionEvent &&
+        typeof DeviceMotionEvent.requestPermission === "function";
+    },
+    getFixedNumber(x) {
+      return Number.parseFloat(x).toFixed(2);
+    },
+    isFilteredAccelerating(a) {
+      if (!a) return;
+      this.xyzAccelerationSum = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
+
+      if (this.acceleration.n === 0) {
+        this.acceleration.average = this.xyzAccelerationSum;
+        this.acceleration.n = 1;
+      } else {
+        this.acceleration.average =
+          (this.acceleration.average * this.acceleration.n +
+            this.xyzAccelerationSum) /
+          (this.acceleration.n + 1);
+      }
+
+      if (this.acceleration.n < 100) this.acceleration.n++;
+
+      return this.acceleration.n >= 100 && this.acceleration.average > 1;
+    },
+    attachMotionDetection() {
+      window.addEventListener("devicemotion", this.processMotion);
+    },
+    processMotion(event) {
+      this.isBlur = this.isFilteredAccelerating(event.acceleration);
+    }
+  },
+  mounted: function() {
+    this.detectIphone();
+    if (!this.isIphone) this.attachMotionDetection(); // can't automatically start motion detection on iPhone :(
+  },
+  destroyed() {
+    window.removeEventListener("devicemotion", this.processMotion);
   }
-}
+};
 </script>
 
 <style>
 .container {
-  margin: 0 auto;
+  padding: 2rem;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   text-align: center;
+  flex-direction: column;
 }
 
 .title {
-  font-family: 'Quicksand', 'Source Sans Pro', -apple-system, BlinkMacSystemFont,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  display: block;
-  font-weight: 300;
-  font-size: 100px;
-  color: #35495e;
-  letter-spacing: 1px;
+  font-family: "Quicksand", "Source Sans Pro", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 4rem;
 }
 
 .subtitle {
-  font-weight: 300;
-  font-size: 42px;
-  color: #526488;
-  word-spacing: 5px;
-  padding-bottom: 15px;
+  font-size: 2rem;
 }
 </style>
