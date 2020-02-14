@@ -56,6 +56,11 @@ export default {
     getFixedNumber(x) {
       return Number.parseFloat(x).toFixed(2);
     },
+    limitMaximumAcceleration() {
+      if (this.acceleration.average > 4) {
+        this.acceleration.average = 4;
+      }
+    },
     isFilteredAccelerating(a) {
       if (!a) return;
       this.xyzAccelerationSum = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
@@ -68,6 +73,7 @@ export default {
           (this.acceleration.average * this.acceleration.n +
             this.xyzAccelerationSum) /
           (this.acceleration.n + 1);
+        this.limitMaximumAcceleration();
       }
 
       if (this.acceleration.n < 100) this.acceleration.n++;
